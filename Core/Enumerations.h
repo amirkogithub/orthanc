@@ -47,6 +47,7 @@ namespace Orthanc
     ErrorCode_NotEnoughMemory,
     ErrorCode_BadParameterType,
     ErrorCode_BadSequenceOfCalls,
+    ErrorCode_InexistentItem,
 
     // Specific error codes
     ErrorCode_UriSyntax,
@@ -55,7 +56,8 @@ namespace Orthanc
     ErrorCode_BadFileFormat,
     ErrorCode_Timeout,
     ErrorCode_UnknownResource,
-    ErrorCode_IncompatibleDatabaseVersion
+    ErrorCode_IncompatibleDatabaseVersion,
+    ErrorCode_FullStorage
   };
 
   enum PixelFormat

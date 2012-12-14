@@ -51,21 +51,32 @@ namespace Orthanc
     class ServerIndexListener;
   }
 
-
-
   class ServerIndex : public boost::noncopyable
   {
   private:
+    class Transaction;
+
     boost::mutex mutex_;
     boost::thread flushThread_;
 
     std::auto_ptr<Internals::ServerIndexListener> listener_;
     std::auto_ptr<DatabaseWrapper> db_;
 
+    uint64_t currentStorageSize_;
+    uint64_t maximumStorageSize_;
+    unsigned int maximumPatients_;
+
     void MainDicomTagsToJson(Json::Value& result,
                              int64_t resourceId);
 
     SeriesStatus GetSeriesStatus(int id);
+
+    bool IsRecyclingNeeded(uint64_t instanceSize);
+
+    void Recycle(uint64_t instanceSize,
+                 const std::string& newPatientId);
+
+    void StandaloneRecycling();
 
   public:
     typedef std::list<FileInfo> Attachments;
@@ -74,6 +85,22 @@ namespace Orthanc
                 const std::string& dbPath);
 
     ~ServerIndex();
+
+    uint64_t GetMaximumStorageSize() const
+    {
+      return maximumStorageSize_;
+    }
+
+    uint64_t GetMaximumPatientCount() const
+    {
+      return maximumPatients_;
+    }
+
+    // "size == 0" means no limit on the storage size
+    void SetMaximumStorageSize(uint64_t size);
+
+    // "count == 0" means no limit on the number of patients
+    void SetMaximumPatientCount(unsigned int count);
 
     StoreStatus Store(const DicomMap& dicomSummary,
                       const Attachments& attachments,
@@ -111,5 +138,9 @@ namespace Orthanc
 
     bool GetLastExportedResource(Json::Value& target);
 
+    bool IsProtectedPatient(const std::string& publicId);
+
+    void SetProtectedPatient(const std::string& publicId,
+                             bool isProtected);
   };
 }

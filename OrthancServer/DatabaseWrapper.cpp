@@ -33,6 +33,7 @@
 #include "DatabaseWrapper.h"
 
 #include "../Core/DicomFormat/DicomArray.h"
+#include "../Core/Uuid.h"
 #include "EmbeddedResources.h"
 
 #include <glog/logging.h>
@@ -61,12 +62,18 @@ namespace Orthanc
 
       virtual unsigned int GetCardinality() const
       {
-        return 1;
+        return 5;
       }
 
       virtual void Compute(SQLite::FunctionContext& context)
       {
-        listener_.SignalFileDeleted(context.GetStringValue(0));
+        FileInfo info(context.GetStringValue(0),
+                      static_cast<FileContentType>(context.GetIntValue(1)),
+                      static_cast<uint64_t>(context.GetInt64Value(2)),
+                      static_cast<CompressionType>(context.GetIntValue(3)),
+                      static_cast<uint64_t>(context.GetInt64Value(4)));
+        
+        listener_.SignalFileDeleted(info);
       }
     };
 
@@ -743,9 +750,9 @@ namespace Orthanc
       LOG(INFO) << "Version of the Orthanc database: " << version;
       unsigned int v = boost::lexical_cast<unsigned int>(version);
 
-      // This version of Orthanc is only compatible with version 2 of
-      // the DB schema (since Orthanc 0.3.1)
-      ok = (v == 2); 
+      // This version of Orthanc is only compatible with version 3 of
+      // the DB schema (since Orthanc 0.3.2)
+      ok = (v == 3); 
     }
     catch (boost::bad_lexical_cast&)
     {
@@ -776,5 +783,71 @@ namespace Orthanc
     assert(!s.Step());
 
     return c;
+  }
+
+  bool DatabaseWrapper::SelectPatientToRecycle(int64_t& internalId)
+  {
+    SQLite::Statement s(db_, SQLITE_FROM_HERE,
+                        "SELECT patientId FROM PatientRecyclingOrder ORDER BY seq ASC LIMIT 1");
+   
+    if (!s.Step())
+    {
+      // No patient remaining or all the patients are protected
+      return false;
+    }
+    else
+    {
+      internalId = s.ColumnInt(0);
+      return true;
+    }    
+  }
+
+  bool DatabaseWrapper::SelectPatientToRecycle(int64_t& internalId,
+                                               int64_t patientIdToAvoid)
+  {
+    SQLite::Statement s(db_, SQLITE_FROM_HERE,
+                        "SELECT patientId FROM PatientRecyclingOrder "
+                        "WHERE patientId != ? ORDER BY seq ASC LIMIT 1");
+    s.BindInt(0, patientIdToAvoid);
+
+    if (!s.Step())
+    {
+      // No patient remaining or all the patients are protected
+      return false;
+    }
+    else
+    {
+      internalId = s.ColumnInt(0);
+      return true;
+    }   
+  }
+
+  bool DatabaseWrapper::IsProtectedPatient(int64_t internalId)
+  {
+    SQLite::Statement s(db_, SQLITE_FROM_HERE,
+                        "SELECT * FROM PatientRecyclingOrder WHERE patientId = ?");
+    s.BindInt(0, internalId);
+    return !s.Step();
+  }
+
+  void DatabaseWrapper::SetProtectedPatient(int64_t internalId, 
+                                            bool isProtected)
+  {
+    if (isProtected)
+    {
+      SQLite::Statement s(db_, SQLITE_FROM_HERE, "DELETE FROM PatientRecyclingOrder WHERE patientId=?");
+      s.BindInt(0, internalId);
+      s.Run();
+    }
+    else if (IsProtectedPatient(internalId))
+    {
+      SQLite::Statement s(db_, SQLITE_FROM_HERE, "INSERT INTO PatientRecyclingOrder VALUES(NULL, ?)");
+      s.BindInt(0, internalId);
+      s.Run();
+    }
+    else
+    {
+      // Nothing to do: The patient is already unprotected
+    }
   }
 }

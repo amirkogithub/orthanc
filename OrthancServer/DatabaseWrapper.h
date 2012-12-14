@@ -179,6 +179,16 @@ namespace Orthanc
     void GetAllPublicIds(Json::Value& target,
                          ResourceType resourceType);
 
+    bool SelectPatientToRecycle(int64_t& internalId);
+
+    bool SelectPatientToRecycle(int64_t& internalId,
+                                int64_t patientIdToAvoid);
+
+    bool IsProtectedPatient(int64_t internalId);
+
+    void SetProtectedPatient(int64_t internalId, 
+                             bool isProtected);
+
     DatabaseWrapper(const std::string& path,
                     IServerIndexListener& listener);
 

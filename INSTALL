@@ -67,7 +67,7 @@ recent enough. This greatly speeds up the compilation:
 # cmake -DSTATIC_BUILD=OFF -DCMAKE_BUILD_TYPE=DEBUG ~/Orthanc
 # make
 
- 
+
 
 Cross-Compilation for Windows under Linux
 -----------------------------------------
@@ -104,3 +104,17 @@ NOTES:
   Visual Studio 2005:
   http://en.wikipedia.org/wiki/Microsoft_Windows_SDK.
   Read the CMake FAQ: http://goo.gl/By90B 
+
+
+
+Debian/Ubuntu specific
+----------------------
+
+When dynamically linking against the system libraries, you have to
+manually add the "wrap" and "oflog" libraries at the configuration
+time (because of a packaging error in "libdcmtk"):
+
+# cd ~/OrthancBuild
+# cmake "-DDCMTK_LIBRARIES=wrap;oflog" -DSTATIC_BUILD=OFF -DCMAKE_BUILD_TYPE=DEBUG ~/Orthanc
+# make
+
